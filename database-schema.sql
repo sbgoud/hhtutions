@@ -110,6 +110,25 @@ alter table public.wallet_transactions enable row level security;
 
 -- RLS Policies
 
+-- Drop existing policies first (for development/testing)
+drop policy if exists "profile_insert_self" on user_profiles;
+drop policy if exists "profile_select_self" on user_profiles;
+drop policy if exists "profile_update_self" on user_profiles;
+drop policy if exists "posts_select_all" on tuition_posts;
+drop policy if exists "posts_insert_owner" on tuition_posts;
+drop policy if exists "posts_update_owner" on tuition_posts;
+drop policy if exists "posts_delete_owner" on tuition_posts;
+drop policy if exists "unlocks_select_self" on unlocks;
+drop policy if exists "unlocks_insert_self" on unlocks;
+drop policy if exists "applications_select_self_or_post_owner" on applications;
+drop policy if exists "applications_insert_self" on applications;
+drop policy if exists "manual_select_self_or_admin" on manual_payments;
+drop policy if exists "manual_insert_self" on manual_payments;
+drop policy if exists "manual_update_admin" on manual_payments;
+drop policy if exists "wallet_select_self_or_admin" on wallet_transactions;
+drop policy if exists "wallet_insert_self" on wallet_transactions;
+drop policy if exists "wallet_update_admin" on wallet_transactions;
+
 -- user_profiles policies
 create policy "profile_insert_self" on user_profiles for insert with check (auth.uid() = user_id);
 create policy "profile_select_self" on user_profiles for select using (true);
@@ -149,9 +168,14 @@ select exists(
 );
 $$ language sql stable;
 
--- Create storage bucket for payment proofs
+-- Create storage bucket for payment proofs (only if it doesn't exist)
 insert into storage.buckets (id, name, public)
-values ('proofs', 'proofs', false);
+values ('proofs', 'proofs', false)
+on conflict (id) do nothing;
+
+-- Drop existing storage policies first (for development/testing)
+drop policy if exists "proofs_upload_own" on storage.objects;
+drop policy if exists "proofs_select_own_or_admin" on storage.objects;
 
 -- Storage policies for proofs bucket
 create policy "proofs_upload_own" on storage.objects for insert with check (bucket_id = 'proofs' and auth.uid()::text = (storage.foldername(name))[1]);
