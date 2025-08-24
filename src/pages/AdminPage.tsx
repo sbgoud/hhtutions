@@ -25,6 +25,27 @@ interface ManualPayment {
   } | null
 }
 
+interface WalletTransaction {
+  id: number
+  user_id: string
+  user_email: string
+  user_phone: string | null
+  user_name: string | null
+  amount: number
+  currency: string
+  transaction_type: string
+  payment_method: string
+  utr_number: string | null
+  transaction_id: string
+  upi_ref: string | null
+  status: string
+  admin_notes: string | null
+  verified_by: string | null
+  verified_at: string | null
+  created_at: string
+  updated_at: string
+}
+
 interface UserProfile {
   user_id: string
   full_name: string | null
@@ -53,7 +74,7 @@ interface DashboardStats {
 
 export default function AdminPage() {
   const { user } = useAuthStore()
-  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'users' | 'posts'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'payments' | 'users' | 'posts' | 'wallet'>('wallet')
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<DashboardStats>({
     totalUsers: 0,
@@ -65,6 +86,7 @@ export default function AdminPage() {
   const [manualPayments, setManualPayments] = useState<ManualPayment[]>([])
   const [users, setUsers] = useState<UserProfile[]>([])
   const [posts, setPosts] = useState<TuitionPost[]>([])
+  const [walletTransactions, setWalletTransactions] = useState<WalletTransaction[]>([])
   const [selectedPayment, setSelectedPayment] = useState<ManualPayment | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
@@ -88,6 +110,8 @@ export default function AdminPage() {
         await loadUsers()
       } else if (activeTab === 'posts') {
         await loadPosts()
+      } else if (activeTab === 'wallet') {
+        await loadWalletTransactions()
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error)
@@ -146,6 +170,49 @@ export default function AdminPage() {
       setManualPayments(data || [])
     } catch (error) {
       console.error('Error loading manual payments:', error)
+    }
+  }
+
+  const loadWalletTransactions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('wallet_transactions')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setWalletTransactions(data || [])
+    } catch (error) {
+      console.error('Error loading wallet transactions:', error)
+    }
+  }
+
+  const verifyWalletTransaction = async (transactionId: number, action: 'verified' | 'rejected', notes?: string) => {
+    setActionLoading(true)
+    try {
+      const updateData: any = {
+        status: action,
+        verified_at: new Date().toISOString(),
+        verified_by: user?.id,
+        admin_notes: notes || null
+      }
+
+      const { error } = await supabase
+        .from('wallet_transactions')
+        .update(updateData)
+        .eq('id', transactionId)
+
+      if (error) throw error
+
+      // Refresh the data
+      await loadWalletTransactions()
+      alert(`Transaction ${action} successfully!`)
+    } catch (error) {
+      console.error('Error updating wallet transaction:', error)
+      alert('Error updating transaction. Please try again.')
+    } finally {
+      setActionLoading(false)
     }
   }
 
@@ -348,6 +415,15 @@ export default function AdminPage() {
                 <h3 className="font-medium text-gray-900">Moderate Posts</h3>
                 <p className="text-sm text-gray-600">Review and moderate content</p>
               </button>
+
+              <button
+                onClick={() => setActiveTab('wallet')}
+                className="p-4 border border-gray-200 rounded-lg hover:border-primary hover:bg-primary hover:bg-opacity-5 transition-colors"
+              >
+                <Wallet className="h-6 w-6 text-primary mb-2" />
+                <h3 className="font-medium text-gray-900">Wallet Transactions</h3>
+                <p className="text-sm text-gray-600">Verify UPI payments</p>
+              </button>
             </div>
           </div>
         </div>
@@ -508,6 +584,81 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Wallet Transactions Tab */}
+      {activeTab === 'wallet' && (
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-900">Wallet Transactions</h2>
+            <div className="text-sm text-gray-600">
+              {walletTransactions.length} pending transactions
+            </div>
+          </div>
+
+          {walletTransactions.length === 0 ? (
+            <div className="text-center py-12">
+              <Wallet className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No pending transactions</h3>
+              <p className="text-gray-600">All wallet transactions have been processed</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {walletTransactions.map((transaction) => (
+                <div key={transaction.id} className="card">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-4 mb-2">
+                        <h3 className="font-semibold text-gray-900">{transaction.user_name || 'Unknown User'}</h3>
+                        <span className="text-sm text-gray-500">{transaction.transaction_id}</span>
+                        <span className="px-2 py-1 text-xs bg-yellow-100 text-yellow-800 rounded-full">
+                          Pending
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+                        <div>
+                          <span className="font-medium">Email:</span> {transaction.user_email}
+                        </div>
+                        <div>
+                          <span className="font-medium">Phone:</span> {transaction.user_phone || 'Not provided'}
+                        </div>
+                        <div>
+                          <span className="font-medium">Amount:</span> ₹{transaction.amount}
+                        </div>
+                        <div>
+                          <span className="font-medium">UTR:</span> {transaction.utr_number || 'Not provided'}
+                        </div>
+                        <div>
+                          <span className="font-medium">Date:</span> {formatDate(transaction.created_at)}
+                        </div>
+                        <div>
+                          <span className="font-medium">Method:</span> {transaction.payment_method?.toUpperCase()}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => verifyWalletTransaction(transaction.id, 'verified')}
+                      disabled={actionLoading}
+                      className="btn-primary text-sm disabled:opacity-50"
+                    >
+                      {actionLoading ? 'Processing...' : '✅ Verify & Add Funds'}
+                    </button>
+                    <button
+                      onClick={() => verifyWalletTransaction(transaction.id, 'rejected')}
+                      disabled={actionLoading}
+                      className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm"
+                    >
+                      {actionLoading ? 'Processing...' : '❌ Reject'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

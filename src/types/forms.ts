@@ -14,7 +14,8 @@ export const tuitionPostSchema = z.object({
   tuition_type: z.enum(['Home Tuition', 'At Tutor Home', 'At Institute', 'Online']),
   price_type: z.enum(['hourly', 'monthly', 'onetime']),
   asked_price: z.number().min(1, 'Price must be greater than 0'),
-  description: z.string().min(10, 'Description must be at least 10 characters').max(1000, 'Description must be less than 1000 characters')
+  description: z.string().min(10, 'Description must be at least 10 characters').max(1000, 'Description must be less than 1000 characters'),
+  phone: z.string().min(10, 'Phone number must be at least 10 characters').max(15, 'Phone number must be less than 15 characters')
 })
 
 export type TuitionPostFormData = z.infer<typeof tuitionPostSchema>

@@ -78,12 +78,35 @@ create table if not exists public.manual_payments (
   updated_at timestamp with time zone default now()
 );
 
+-- Create wallet_transactions table
+create table if not exists public.wallet_transactions (
+  id bigserial primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  user_email text not null,
+  user_phone text,
+  user_name text,
+  amount integer not null,
+  currency text not null default 'INR',
+  transaction_type text not null default 'credit', -- credit/debit
+  payment_method text not null default 'upi', -- upi/card/bank
+  utr_number text, -- UTR number from UPI transaction
+  transaction_id text unique, -- unique transaction ID
+  upi_ref text, -- UPI reference number
+  status text not null default 'pending', -- pending/verified/rejected
+  admin_notes text,
+  verified_by uuid references auth.users(id),
+  verified_at timestamp with time zone,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
 -- Enable RLS
 alter table public.user_profiles enable row level security;
 alter table public.tuition_posts enable row level security;
 alter table public.unlocks enable row level security;
 alter table public.applications enable row level security;
 alter table public.manual_payments enable row level security;
+alter table public.wallet_transactions enable row level security;
 
 -- RLS Policies
 
@@ -110,6 +133,11 @@ create policy "applications_insert_self" on applications for insert with check (
 create policy "manual_select_self_or_admin" on manual_payments for select using (auth.uid() = payer_user_id OR auth.jwt() ->> 'email' in ('shashank2bandari@gmail.com','dineshsomishetti@gmail.com'));
 create policy "manual_insert_self" on manual_payments for insert with check (auth.uid() = payer_user_id);
 create policy "manual_update_admin" on manual_payments for update using (auth.jwt() ->> 'email' in ('shashank2bandari@gmail.com','dineshsomishetti@gmail.com'));
+
+-- wallet_transactions policies
+create policy "wallet_select_self_or_admin" on wallet_transactions for select using (auth.uid() = user_id OR auth.jwt() ->> 'email' in ('shashank2bandari@gmail.com','dineshsomishetti@gmail.com'));
+create policy "wallet_insert_self" on wallet_transactions for insert with check (auth.uid() = user_id);
+create policy "wallet_update_admin" on wallet_transactions for update using (auth.jwt() ->> 'email' in ('shashank2bandari@gmail.com','dineshsomishetti@gmail.com'));
 
 -- Helper function to check if post is unlocked
 create or replace function public.is_post_unlocked(_post_id bigint)

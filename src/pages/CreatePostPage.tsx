@@ -47,7 +47,8 @@ export default function CreatePostPage() {
       tuition_type: 'Home Tuition',
       price_type: 'hourly',
       asked_price: 0,
-      description: ''
+      description: '',
+      phone: profile?.phone || ''
     }
   })
 
@@ -286,6 +287,24 @@ export default function CreatePostPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
                 placeholder="Enter your locality or area"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                📱 Contact Phone Number *
+              </label>
+              <input
+                {...register('phone')}
+                type="tel"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
+                placeholder="Enter your phone number"
+              />
+              {errors.phone && (
+                <p className="mt-1 text-sm text-red-600">{errors.phone.message}</p>
+              )}
+              <p className="mt-1 text-xs text-gray-500">
+                This phone number will be saved with your post for tutors to contact you
+              </p>
             </div>
           </div>
         </div>
